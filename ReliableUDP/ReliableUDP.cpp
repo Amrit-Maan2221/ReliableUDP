@@ -199,13 +199,45 @@ int main(int argc, char* argv[])
 		}
 
 		// send and receive packets
+		/*
+		* Ther server will first check what type of request it is.
+		* If the request is for the sending a file, it will get the file name
+		* or any relative/absolute path if client knows.
+		* It will then search for that file using an algorithm that we will create.
+		* It will be like a loop. After the file is found, it will send the file with ReliableUDP.
+		*/
 
 		sendAccumulator += DeltaTime;
 
 		while (sendAccumulator > 1.0f / sendRate)
 		{
+			
+
 			unsigned char packet[PacketSize];
 			memset(packet, 0, sizeof(packet));
+			/*
+			-Walk across the set of messages in the send message sequence buffer between the oldest unacked message id
+			and the most recent inserted message id from left->right(increasing message id order).
+
+			-Never send a message id that the receiver can’t buffer or you’ll break message acks
+			(since that message won’t be buffered, but the packet containing it will be acked, 
+			the sender thinks the message has been received, and will not resend it).This means 
+			you must never send a message id equal to or more recent than the oldest unacked message id plus the size of the message receive buffer.
+
+			-For any message that hasn’t been sent in the last 0.1 seconds and fits in the available space we have left in the packet, 
+			add it to the list of messages to send.Messages on the left(older messages) naturally have priority due to the iteration order.
+
+			-Include the messages in the outgoing packetand add a reference to each message.
+			Make sure the packet destructor decrements the ref count for each message.
+
+			-Store the number of messages in the packet nand the array of message ids included in the packet in a sequence 
+			buffer indexed by the outgoing packet sequence number so they can be used to map packet level acks to the set of messages included in that packet.
+
+			*/
+
+
+
+
 			connection.SendPacket(packet, sizeof(packet));
 			sendAccumulator -= 1.0f / sendRate;
 		}
