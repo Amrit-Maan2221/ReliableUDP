@@ -214,8 +214,8 @@ int main(int argc, char* argv[])
 		{
 			
 
-			unsigned char packet[PacketSize];
-			memset(packet, 0, sizeof(packet));
+			unsigned char packet[PacketSize] = "Hello World << N >>" ;
+			//memset(packet, 0, sizeof(packet));
 			/*
 			-Walk across the set of messages in the send message sequence buffer between the oldest unacked message id
 			and the most recent inserted message id from left->right(increasing message id order).
@@ -237,8 +237,6 @@ int main(int argc, char* argv[])
 			*/
 
 
-
-
 			connection.SendPacket(packet, sizeof(packet));
 			sendAccumulator -= 1.0f / sendRate;
 		}
@@ -247,6 +245,7 @@ int main(int argc, char* argv[])
 		{
 			unsigned char packet[256];
 			int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
+			printf("Packet Received: %s\n", packet);
 			if (bytes_read == 0)
 				break;
 		}
