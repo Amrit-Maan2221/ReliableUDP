@@ -139,17 +139,19 @@ int main(int argc, char* argv[])
 	Mode mode = Server;
 	Address address;
 
-	if (argc != 2 && argc != 4)
+	if (argc != 1 && argc != 4)
 	{
-		printf("Error: Not enough commands passed\n");
-		printf("Usage: Run As Server:- ReliableUDP.exe 0 ---- Run As Client:- ReliableUDP.exe ServerIP FileName Task{-r(request) or -s(send)}]\n");
+		printf("Error: Not Enough Command Line Arguments Passed\n");
+		printf("Usage: Please Run it as following\m"
+			"Run As Server: ReliableUDP.exe\n"
+			"Run As Client: ReliableUDP.exe ServerIPAddress FileName Task[-r(request) or -s(send)}]\n");
 	}
 	else {
-		if (argc == 2)
+		if (argc == 1)
 		{
 			mode = Server;
 		}
-		else if(argc >= 2)
+		else if(argc == 4)
 		{
 			int a, b, c, d;
 			#pragma warning(suppress : 4996)
@@ -165,9 +167,16 @@ int main(int argc, char* argv[])
 					{
 						printf("Requesting file...\n");
 					}
-					else
+					else if (strcmp(task, "-s") == 0)
 					{
 						printf("Sending file...\n");
+					}
+					else
+					{
+						printf("Error: Not Enough Command Line Arguments Passed\n");
+						printf("Usage: Please Run it as following\m"
+							"Run As Server: ReliableUDP.exe\n"
+							"Run As Client: ReliableUDP.exe ServerIPAddress FileName Task[-r(request) or -s(send)}]\n");
 					}
 				}
 				address = Address(a, b, c, d, ServerPort);
@@ -175,10 +184,9 @@ int main(int argc, char* argv[])
 		}
 
 		// initialize
-
 		if (!InitializeSockets())
 		{
-			printf("failed to initialize sockets\n");
+			printf("Failed to initialize sockets\n");
 			return 1;
 		}
 
@@ -203,35 +211,44 @@ int main(int argc, char* argv[])
 
 		FlowControl flowControl;
 
-		int packets_Sent = 1;
+		int sentPakets = 1;
 
-		char hash[7] = "";
-		char* inputFileData = NULL; //read file data stored here
-		char* strFileContent = NULL;
+		//char hash[7] = "";
+		char* inputFileData = NULL;
 		long transferredLength = 0;
-
+		long fileSize = 0;
 		bool isFinishedTransfer = false;
 
 
-		//Reading file for sending
+		//We are reading the file here for sending
 		if (strcmp(task, "-s") == 0)
 		{
-			// --------------------------------------------------------------------------------
 			FILE* ifp;
 			ifp = fopen(fileName, "rb");
 
 			//Find length of file
 			fseek(ifp, 0, SEEK_END);
-			long fileSize = ftell(ifp);
+			fileSize = ftell(ifp);
 			fseek(ifp, 0, SEEK_SET);
 
 			//read in the data from your file
-			inputFileData = (char*)malloc(fileSize + 1);
-			fread(inputFileData, sizeof(char), fileSize, ifp);
-
 			
-			// --------------------------------------------------------------------------------
+			inputFileData = (char*)malloc(fileSize + 1);
+			while (!feof(ifp))
+			{
+				int howManyRead = 0;
+
+				// as long as we are reading at least one character (indicated by the return value
+				// from fread), keep going
+				if ((howManyRead = fread(inputFileData, sizeof(char), fileSize+1, ifp)) != 0)
+				{
+					inputFileData[howManyRead] = '\0';
+				}
+			}
+
 		}
+
+		//Upto here we have read the whole in inputFileData Variable and also determined the whole file Size.....
 
 
 
@@ -269,20 +286,17 @@ int main(int argc, char* argv[])
 				break;
 			}
 
-			// send and receive packets
-			/*
-			* Ther server will first check what type of request it is.
-			* If the request is for the sending a file, it will get the file name
-			* or any relative/absolute path if client knows.
-			* It will then search for that file using an algorithm that we will create.
-			* It will be like a loop. After the file is found, it will send the file with ReliableUDP.
-			*/
+			
 
 			sendAccumulator += DeltaTime;
 
+			
 
 			while (sendAccumulator > 1.0f / sendRate)
 			{
+
+				//sending data here in packets
+
 				if (isFinishedTransfer)
 				{
 					break;
@@ -290,30 +304,38 @@ int main(int argc, char* argv[])
 
 				unsigned char packet[PacketSize] = "\0";
 				memset(packet, 0, sizeof(packet));
-				char status[25] = "Processing";
-				char data[PacketSize];
+				char status[15] = "Processing";
+				char body[PacketSize];
+				memset(body, 0, sizeof(body));
 
 
-				if (inputFileData &&  strlen(inputFileData) > transferredLength)
+				if (inputFileData &&  fileSize > transferredLength)
 				{
-					int currPacketSize = PacketSize - 35 - strlen(fileName) - strlen(status);
-					memcpy(data, &inputFileData[transferredLength], currPacketSize);
-					transferredLength += currPacketSize;
-					AddHeader(fileName, status, data);
-					memcpy(packet, data, sizeof(data));
+					//we will add headers in the packet now....
+					strcat((char*)packet, fileName);
+					strcat((char*)packet, "#");
+					strcat((char*)packet, status);
+					strcat((char*)packet, "#");
+					int bodySize = PacketSize - strlen((char*)packet) - 1;
+					strncpy(body, &inputFileData[transferredLength], bodySize);
+					strcat((char*)packet, body);
+
+					int packetLenthWithBody = strlen((char*)packet);
+					packet[PacketSize - 1] = '\0';
 					connection.SendPacket(packet, sizeof(packet));
 					sendAccumulator -= 1.0f / sendRate;
+
+					//update the transferred length
+					transferredLength += bodySize;
 				}
 				else
 				{
-					strcpy(status, "Done");
+					strcpy(status, "complete");
+					strcat((char*)packet, fileName);
+					strcat((char*)packet, "#");
+					strcat((char*)packet, status);
+					strcat((char*)packet, "#");
 
-					AddHeader(fileName, status, data);
-					memcpy(packet, data, sizeof(data));
-					connection.SendPacket(packet, sizeof(packet));
-
-
-					memset(packet, 0, sizeof(packet));
 					connection.SendPacket(packet, sizeof(packet));
 					sendAccumulator -= 1.0f / sendRate;
 
@@ -323,13 +345,15 @@ int main(int argc, char* argv[])
 			}
 
 
-			char recData[PacketSize];
-			string fileContent;
-			char status[25] = "Processing";
+			
 
 			while (true)
 			{
-				unsigned char packet[256];
+				char receivedData[PacketSize];
+				string fileContent;
+				char status[15] = "Processing";
+
+				unsigned char packet[PacketSize];
 				memset(packet, 0, sizeof(packet));
 				int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
 
@@ -342,10 +366,10 @@ int main(int argc, char* argv[])
 					printf("%s\n", packet);
 				}
 
-				char _fileName[150] = "";
+				char recFileName[121] = "";
 				strcpy(status, "");
-				strcpy(recData, "");
-				ExtractHeader(_fileName, status, (char*)packet, recData);
+				strcpy(receivedData, "");
+				extractPacketData(packet, recFileName, status, receivedData);
 
 				if (strcmp(status, "Done") == 0)
 				{
