@@ -24,8 +24,8 @@ using namespace std::chrono;
 using namespace std;
 using namespace net;
 
-const int ServerPort = 9993;
-const int ClientPort = 9993;
+const int ServerPort = 30000;
+const int ClientPort = 30001;
 const int ProtocolId = 0x11223344;
 const float DeltaTime = 1.0f / 30.0f;
 const float SendRate = 1.0f / 30.0f;
@@ -358,6 +358,11 @@ int main(int argc, char* argv[])
 					connection.SendPacket(packet, sizeof(packet));
 					sendAccumulator -= 1.0f / sendRate;
 
+					t2 = high_resolution_clock::now();
+
+					double dif = duration_cast<nanoseconds>(t2 - t1).count();
+					printf("Elasped time is %lf nanoseconds.\n", dif);
+
 					done = true;
 					break;
 				}
@@ -386,29 +391,18 @@ int main(int argc, char* argv[])
 
 				if (strcmp(status, "complete") == 0)
 				{
+					char hash[121] = {0};
+					extractPacketData(packet, recFileName, status, hash, fileSizeGot);
 
-
-					t2 = high_resolution_clock::now();
-
-					double dif = duration_cast<nanoseconds>(t2 - t1).count();
-					printf("Elasped time is %lf nanoseconds.\n", dif);
+					
 
 					ofstream ofp;
-					ofp.open("rev.txt", std::ios::binary | std::ios::out);
+					ofp.open(recFileName, std::ios::binary | std::ios::out);
 					ofp.write(fileData.c_str(), fileData.length());
+
 					ofp.close();
-					exit(1);
-					//hash = CalculateMd5Hash("rev.txt");
-
-					/*if (strcmp(hash.c_str(), data) == 0)
-					{
-						printf("File transfer successfully\n");
-
-					}
-					else
-					{
-						printf("File transfer failed\n");
-					}*/
+					fileData = "";
+					
 				}
 				else if (strcmp(status, "sending") == 0)
 				{
