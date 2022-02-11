@@ -18,21 +18,12 @@
     <ClCompile Include="ReliableUDP.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="loadAndStore.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="sendAndRecieve.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="validate.cpp">
+    <ClCompile Include="dataParsing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Net.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="functionPrototypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

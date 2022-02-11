@@ -51,6 +51,11 @@
 
 
 
+//function prototype
+void extractPacketData(unsigned char* packet, char* fileName, char* transferStatus, char* data, char* gotFileSize);
+
+
+
 
 namespace net
 {

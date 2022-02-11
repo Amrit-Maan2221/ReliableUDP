@@ -8,9 +8,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
+//#include <openssl/md5.h>
 #include <chrono>
 #include "Net.h"
-#include "functionPrototypes.h"
 using namespace std;
 using namespace std::chrono;
 
@@ -24,8 +24,8 @@ using namespace std::chrono;
 using namespace std;
 using namespace net;
 
-const int ServerPort = 30000;
-const int ClientPort = 30001;
+const int ServerPort = 9993;
+const int ClientPort = 9993;
 const int ProtocolId = 0x11223344;
 const float DeltaTime = 1.0f / 30.0f;
 const float SendRate = 1.0f / 30.0f;
@@ -128,7 +128,6 @@ int main(int argc, char* argv[])
 {
 
 	char fileName[121] = "\0";
-	char task[3];
 	high_resolution_clock::time_point t1;
 	high_resolution_clock::time_point t2;
 
@@ -143,19 +142,19 @@ int main(int argc, char* argv[])
 	Mode mode = Server;
 	Address address;
 
-	if (argc != 1 && argc != 4)
+	if (argc != 1 && argc != 3)
 	{
-		printf("Error: Not Enough Command Line Arguments Passed\n");
-		printf("Usage: Please Run it as following\m"
+		printf("Error: Wrong command line arguments\n");
+		printf("Usage: Please Run it as following\n"
 			"Run As Server: ReliableUDP.exe\n"
-			"Run As Client: ReliableUDP.exe ServerIPAddress FileName Task[-r(request) or -s(send)}]\n");
+			"Run As Client: ReliableUDP.exe ServerIPAddress FileName\n");
 	}
 	else {
 		if (argc == 1)
 		{
 			mode = Server;
 		}
-		else if(argc == 4)
+		else if(argc == 3)
 		{
 			int a, b, c, d;
 			#pragma warning(suppress : 4996)
@@ -165,25 +164,16 @@ int main(int argc, char* argv[])
 				if (mode == Client)
 				{
 					strcpy(fileName, argv[2]);
-
-					strcpy(task, argv[3]);
-					if (strcmp(task,"-r") == 0)
-					{
-						printf("Requesting file...\n");
-					}
-					else if (strcmp(task, "-s") == 0)
-					{
-						printf("Sending file...\n");
-					}
-					else
-					{
-						printf("Error: Not Enough Command Line Arguments Passed\n");
-						printf("Usage: Please Run it as following\m"
-							"Run As Server: ReliableUDP.exe\n"
-							"Run As Client: ReliableUDP.exe ServerIPAddress FileName Task[-r(request) or -s(send)}]\n");
-					}
 				}
 				address = Address(a, b, c, d, ServerPort);
+			}
+			else
+			{
+				printf("Error: Wrong command line arguments\n");
+				printf("Usage: Please Run it as following\n"
+					"Run As Server: ReliableUDP.exe\n"
+					"Run As Client: ReliableUDP.exe ServerIPAddress FileName\n");
+
 			}
 		}
 
@@ -219,25 +209,34 @@ int main(int argc, char* argv[])
 
 		//char hash[7] = "";
 		char* inputFileData = NULL;
-		long transferredLength = 0;
+		long dataTransferred = 0;
 		long fileSize = 0;
+		char fileSizeStr[10] = { 0 };
+		bool done = false;
 
-		bool isFinishedTransfer = false;
 
 
 		//We are reading the file here for sending
-		if (strcmp(task, "-s") == 0)
+		if (mode == Client)
 		{
-			FILE* ifp;
+			FILE* ifp = NULL;
 			ifp = fopen(fileName, "rb");
+			if (ifp == NULL)
+			{
+				printf("Can't open input file\n");
+			}
 
 			//Find length of file
 			fseek(ifp, 0, SEEK_END);
 			fileSize = ftell(ifp);
 			fseek(ifp, 0, SEEK_SET);
+			char fileSizeStr[10] = { 0 };
+			sprintf(fileSizeStr, "%d", fileSize);
+
+
 
 			//read in the data from your file
-			
+
 			inputFileData = (char*)malloc(fileSize + 1);
 			while (!feof(ifp))
 			{
@@ -245,19 +244,17 @@ int main(int argc, char* argv[])
 
 				// as long as we are reading at least one character (indicated by the return value
 				// from fread), keep going
-				if ((howManyRead = fread(inputFileData, sizeof(char), fileSize+1, ifp)) != 0)
+				if ((howManyRead = fread(inputFileData, sizeof(char), fileSize + 1, ifp)) != 0)
 				{
 					inputFileData[howManyRead] = '\0';
 				}
 			}
 			if (fclose(ifp) != 0)
 			{
-					printf("Error closing input file\n");
+				printf("Error closing input file\n");
 			}
+			//Upto here we have read the whole in inputFileData Variable and also determined the whole file Size.....
 		}
-
-		//Upto here we have read the whole in inputFileData Variable and also determined the whole file Size.....
-
 
 
 
@@ -309,29 +306,31 @@ int main(int argc, char* argv[])
 
 				//sending data here in packets
 
-				if (isFinishedTransfer)
+				if (done)
 				{
 					break;
 				}
 
 				unsigned char packet[PacketSize] = "\0";
 				memset(packet, 0, sizeof(packet));
-				char status[15] = "Processing";
+				char status[15] = "sending";
 				char body[PacketSize];
 				memset(body, 0, sizeof(body));
 
 
-				if (inputFileData &&  fileSize > transferredLength)
+				if (inputFileData &&  fileSize > dataTransferred)
 				{
 					//we will add headers in the packet now....
 					strcat((char*)packet, fileName);
-					strcat((char*)packet, "#");
+					strcat((char*)packet, "~");
+					strcat((char*)packet, fileSizeStr);
+					strcat((char*)packet, "~");
 					strcat((char*)packet, status);
-					strcat((char*)packet, "#");
+					strcat((char*)packet, "~");
 
 					//adding file contents here in body
 					int bodySize = PacketSize - strlen((char*)packet) - 1;
-					strncpy(body, &inputFileData[transferredLength], bodySize);
+					strncpy(body, &inputFileData[dataTransferred], bodySize);
 					
 
 					strncat((char*)packet, body, bodySize);
@@ -342,20 +341,24 @@ int main(int argc, char* argv[])
 					sendAccumulator -= 1.0f / sendRate;
 
 					//update the transferred length
-					transferredLength += bodySize;
+					dataTransferred += bodySize;
 				}
-				else if (inputFileData && fileSize <= transferredLength)
+				else if (inputFileData && fileSize <= dataTransferred)
 				{
 					strcpy(status, "complete");
 					strcat((char*)packet, fileName);
-					strcat((char*)packet, "#");
+					strcat((char*)packet, "~");
+					strcat((char*)packet, fileSizeStr);
+					strcat((char*)packet, "~");
 					strcat((char*)packet, status);
-					strcat((char*)packet, "#");
+					strcat((char*)packet, "~");
+
+
 
 					connection.SendPacket(packet, sizeof(packet));
 					sendAccumulator -= 1.0f / sendRate;
 
-					isFinishedTransfer = true;
+					done = true;
 					break;
 				}
 			}
@@ -365,8 +368,9 @@ int main(int argc, char* argv[])
 
 			while (true)
 			{
-				char receivedData[PacketSize];
-				char status[15] = "Processing";
+				char receivedData[PacketSize] = {0};
+				char status[15] = {0};
+				char fileSizeGot[10] = { 0 };
 
 				unsigned char packet[PacketSize];
 				memset(packet, 0, sizeof(packet));
@@ -376,15 +380,9 @@ int main(int argc, char* argv[])
 				{
 					break;
 				}
-				else
-				{
-					printf("%s\n", packet);
-				}
 
 				char recFileName[121] = "";
-				strcpy(status, "");
-				strcpy(receivedData, "");
-				extractPacketData(packet, recFileName, status, receivedData);
+				extractPacketData(packet, recFileName, status, receivedData, fileSizeGot);
 
 				if (strcmp(status, "complete") == 0)
 				{
@@ -412,7 +410,7 @@ int main(int argc, char* argv[])
 						printf("File transfer failed\n");
 					}*/
 				}
-				else if (strcmp(status, "Processing") == 0)
+				else if (strcmp(status, "sending") == 0)
 				{
 					string dataCopy(receivedData);
 					fileData += dataCopy;
