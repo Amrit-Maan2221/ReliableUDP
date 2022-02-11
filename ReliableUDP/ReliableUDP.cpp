@@ -8,9 +8,11 @@
 #include <fstream>
 #include <string>
 #include <vector>
-
+#include <chrono>
 #include "Net.h"
 #include "functionPrototypes.h"
+using namespace std;
+using namespace std::chrono;
 
 
 #pragma warning(disable: 4996)
@@ -127,7 +129,9 @@ int main(int argc, char* argv[])
 
 	char fileName[121] = "\0";
 	char task[3];
-	
+	high_resolution_clock::time_point t1;
+	high_resolution_clock::time_point t2;
+
 	// parse command line
 
 	enum Mode
@@ -294,7 +298,11 @@ int main(int argc, char* argv[])
 
 			sendAccumulator += DeltaTime;
 
-			
+			/*std::clock_t c_start = std::clock();
+			auto t_start = std::chrono::high_resolution_clock::now();
+			long timeTaken = 0.00;*/
+			t1 = high_resolution_clock::now();
+
 
 			while (sendAccumulator > 1.0f / sendRate)
 			{
@@ -336,7 +344,7 @@ int main(int argc, char* argv[])
 					//update the transferred length
 					transferredLength += bodySize;
 				}
-				else
+				else if (inputFileData && fileSize <= transferredLength)
 				{
 					strcpy(status, "complete");
 					strcat((char*)packet, fileName);
@@ -380,11 +388,18 @@ int main(int argc, char* argv[])
 
 				if (strcmp(status, "complete") == 0)
 				{
+
+
+					t2 = high_resolution_clock::now();
+
+					double dif = duration_cast<nanoseconds>(t2 - t1).count();
+					printf("Elasped time is %lf nanoseconds.\n", dif);
+
 					ofstream ofp;
 					ofp.open("rev.txt", std::ios::binary | std::ios::out);
 					ofp.write(fileData.c_str(), fileData.length());
 					ofp.close();
-
+					exit(1);
 					//hash = CalculateMd5Hash("rev.txt");
 
 					/*if (strcmp(hash.c_str(), data) == 0)
