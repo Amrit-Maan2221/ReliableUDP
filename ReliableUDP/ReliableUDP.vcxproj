@@ -145,6 +145,7 @@
     <ClCompile Include="validate.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="functionPrototypes.h" />
     <ClInclude Include="Net.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

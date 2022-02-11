@@ -10,6 +10,12 @@
 #include <vector>
 
 #include "Net.h"
+#include "functionPrototypes.h"
+
+
+#pragma warning(disable: 4996)
+
+
 
 //#define SHOW_ACKS
 
@@ -118,6 +124,10 @@ private:
 
 int main(int argc, char* argv[])
 {
+
+	char fileName[21];
+	char task[3];
+	
 	// parse command line
 
 	enum Mode
@@ -129,173 +139,286 @@ int main(int argc, char* argv[])
 	Mode mode = Server;
 	Address address;
 
-	if (argc >= 2)
+	if (argc != 2 && argc != 4)
 	{
-		int a, b, c, d;
-		#pragma warning(suppress : 4996)
-		if (sscanf(argv[1], "%d.%d.%d.%d", &a, &b, &c, &d))
+		printf("Error: Not enough commands passed\n");
+		printf("Usage: Run As Server:- ReliableUDP.exe 0 ---- Run As Client:- ReliableUDP.exe ServerIP FileName Task{-r(request) or -s(send)}]\n");
+	}
+	else {
+		if (argc == 2)
 		{
-			mode = Client;
-			address = Address(a, b, c, d, ServerPort);
+			mode = Server;
 		}
-	}
+		else if(argc >= 2)
+		{
+			int a, b, c, d;
+			#pragma warning(suppress : 4996)
+			if (sscanf(argv[1], "%d.%d.%d.%d", &a, &b, &c, &d))
+			{
+				mode = Client;
+				if (mode == Client)
+				{
+					strcpy(fileName, argv[2]);
 
-	// initialize
+					strcpy(task, argv[3]);
+					if (strcmp(task,"-r") == 0)
+					{
+						printf("Requesting file...\n");
+					}
+					else
+					{
+						printf("Sending file...\n");
+					}
+				}
+				address = Address(a, b, c, d, ServerPort);
+			}
+		}
 
-	if (!InitializeSockets())
-	{
-		printf("failed to initialize sockets\n");
-		return 1;
-	}
+		// initialize
 
-	ReliableConnection connection(ProtocolId, TimeOut);
+		if (!InitializeSockets())
+		{
+			printf("failed to initialize sockets\n");
+			return 1;
+		}
 
-	const int port = mode == Server ? ServerPort : ClientPort;
+		ReliableConnection connection(ProtocolId, TimeOut);
 
-	if (!connection.Start(port))
-	{
-		printf("could not start connection on port %d\n", port);
-		return 1;
-	}
+		const int port = mode == Server ? ServerPort : ClientPort;
 
-	if (mode == Client)
-		connection.Connect(address);
-	else
+		if (!connection.Start(port))
+		{
+			printf("could not start connection on port %d\n", port);
+			return 1;
+		}
+
+		if (mode == Client)
+			connection.Connect(address);
+		else
 		connection.Listen();
 
-	bool connected = false;
-	float sendAccumulator = 0.0f;
-	float statsAccumulator = 0.0f;
+		bool connected = false;
+		float sendAccumulator = 0.0f;
+		float statsAccumulator = 0.0f;
 
-	FlowControl flowControl;
+		FlowControl flowControl;
 
-	while (true)
-	{
-		// update flow control
+		int packets_Sent = 1;
 
-		if (connection.IsConnected())
-			flowControl.Update(DeltaTime, connection.GetReliabilitySystem().GetRoundTripTime() * 1000.0f);
+		char hash[7] = "";
+		char* inputFileData = NULL; //read file data stored here
+		char* strFileContent = NULL;
+		long transferredLength = 0;
 
-		const float sendRate = flowControl.GetSendRate();
+		bool isFinishedTransfer = false;
 
-		// detect changes in connection state
 
-		if (mode == Server && connected && !connection.IsConnected())
+		//Reading file for sending
+		if (strcmp(task, "-s") == 0)
 		{
-			flowControl.Reset();
-			printf("reset flow control\n");
-			connected = false;
-		}
+			// --------------------------------------------------------------------------------
+			FILE* ifp;
+			ifp = fopen(fileName, "rb");
 
-		if (!connected && connection.IsConnected())
-		{
-			printf("client connected to server\n");
-			connected = true;
-		}
+			//Find length of file
+			fseek(ifp, 0, SEEK_END);
+			long fileSize = ftell(ifp);
+			fseek(ifp, 0, SEEK_SET);
 
-		if (!connected && connection.ConnectFailed())
-		{
-			printf("connection failed\n");
-			break;
-		}
+			//read in the data from your file
+			inputFileData = (char*)malloc(fileSize + 1);
+			fread(inputFileData, sizeof(char), fileSize, ifp);
 
-		// send and receive packets
-		/*
-		* Ther server will first check what type of request it is.
-		* If the request is for the sending a file, it will get the file name
-		* or any relative/absolute path if client knows.
-		* It will then search for that file using an algorithm that we will create.
-		* It will be like a loop. After the file is found, it will send the file with ReliableUDP.
-		*/
-
-		sendAccumulator += DeltaTime;
-
-		while (sendAccumulator > 1.0f / sendRate)
-		{
 			
-
-			unsigned char packet[PacketSize] = "Hello World << N >>" ;
-			//memset(packet, 0, sizeof(packet));
-			/*
-			-Walk across the set of messages in the send message sequence buffer between the oldest unacked message id
-			and the most recent inserted message id from left->right(increasing message id order).
-
-			-Never send a message id that the receiver can’t buffer or you’ll break message acks
-			(since that message won’t be buffered, but the packet containing it will be acked, 
-			the sender thinks the message has been received, and will not resend it).This means 
-			you must never send a message id equal to or more recent than the oldest unacked message id plus the size of the message receive buffer.
-
-			-For any message that hasn’t been sent in the last 0.1 seconds and fits in the available space we have left in the packet, 
-			add it to the list of messages to send.Messages on the left(older messages) naturally have priority due to the iteration order.
-
-			-Include the messages in the outgoing packetand add a reference to each message.
-			Make sure the packet destructor decrements the ref count for each message.
-
-			-Store the number of messages in the packet nand the array of message ids included in the packet in a sequence 
-			buffer indexed by the outgoing packet sequence number so they can be used to map packet level acks to the set of messages included in that packet.
-
-			*/
-
-
-			connection.SendPacket(packet, sizeof(packet));
-			sendAccumulator -= 1.0f / sendRate;
+			// --------------------------------------------------------------------------------
 		}
+
+
+
+
+
+
 
 		while (true)
 		{
-			unsigned char packet[256];
-			int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
-			printf("Packet Received: %s\n", packet);
-			if (bytes_read == 0)
-				break;
-		}
+			// update flow control
 
-		// show packets that were acked this frame
+			if (connection.IsConnected())
+				flowControl.Update(DeltaTime, connection.GetReliabilitySystem().GetRoundTripTime() * 1000.0f);
+
+			const float sendRate = flowControl.GetSendRate();
+
+			// detect changes in connection state
+
+			if (mode == Server && connected && !connection.IsConnected())
+			{
+				flowControl.Reset();
+				printf("reset flow control\n");
+				connected = false;
+			}
+
+			if (!connected && connection.IsConnected())
+			{
+				printf("client connected to server\n");
+				connected = true;
+			}
+
+			if (!connected && connection.ConnectFailed())
+			{
+				printf("connection failed\n");
+				break;
+			}
+
+			// send and receive packets
+			/*
+			* Ther server will first check what type of request it is.
+			* If the request is for the sending a file, it will get the file name
+			* or any relative/absolute path if client knows.
+			* It will then search for that file using an algorithm that we will create.
+			* It will be like a loop. After the file is found, it will send the file with ReliableUDP.
+			*/
+
+			sendAccumulator += DeltaTime;
+
+
+			while (sendAccumulator > 1.0f / sendRate)
+			{
+				if (isFinishedTransfer)
+				{
+					break;
+				}
+
+				unsigned char packet[PacketSize] = "\0";
+				memset(packet, 0, sizeof(packet));
+				char status[25] = "Processing";
+				char data[PacketSize];
+
+
+				if (inputFileData &&  strlen(inputFileData) > transferredLength)
+				{
+					int currPacketSize = PacketSize - 35 - strlen(fileName) - strlen(status);
+					memcpy(data, &inputFileData[transferredLength], currPacketSize);
+					transferredLength += currPacketSize;
+					AddHeader(fileName, status, data);
+					memcpy(packet, data, sizeof(data));
+					connection.SendPacket(packet, sizeof(packet));
+					sendAccumulator -= 1.0f / sendRate;
+				}
+				else
+				{
+					strcpy(status, "Done");
+
+					AddHeader(fileName, status, data);
+					memcpy(packet, data, sizeof(data));
+					connection.SendPacket(packet, sizeof(packet));
+
+
+					memset(packet, 0, sizeof(packet));
+					connection.SendPacket(packet, sizeof(packet));
+					sendAccumulator -= 1.0f / sendRate;
+
+					isFinishedTransfer = true;
+					break;
+				}
+			}
+
+
+			char recData[PacketSize];
+			string fileContent;
+			char status[25] = "Processing";
+
+			while (true)
+			{
+				unsigned char packet[256];
+				memset(packet, 0, sizeof(packet));
+				int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
+
+				if (bytes_read == 0)
+				{
+					break;
+				}
+				else
+				{
+					printf("%s\n", packet);
+				}
+
+				char _fileName[150] = "";
+				strcpy(status, "");
+				strcpy(recData, "");
+				ExtractHeader(_fileName, status, (char*)packet, recData);
+
+				if (strcmp(status, "Done") == 0)
+				{
+					ofstream oFile;
+
+					oFile.open("rev.txt", std::ios::binary | std::ios::out);
+					oFile.write(fileContent.c_str(), fileContent.length());
+					oFile.close();
+					//hash = CalculateMd5Hash("rev.txt");
+
+					/*if (strcmp(hash.c_str(), data) == 0)
+					{
+						printf("File transfer successfully\n");
+
+					}
+					else
+					{
+						printf("File transfer failed\n");
+					}*/
+				}
+				else if (strcmp(status, "Processing") == 0)
+				{
+					string data2(recData);
+					fileContent += data2;
+				}
+			}
+
+			// show packets that were acked this frame
 
 #ifdef SHOW_ACKS
-		unsigned int* acks = NULL;
-		int ack_count = 0;
-		connection.GetReliabilitySystem().GetAcks(&acks, ack_count);
-		if (ack_count > 0)
-		{
-			printf("acks: %d", acks[0]);
-			for (int i = 1; i < ack_count; ++i)
-				printf(",%d", acks[i]);
-			printf("\n");
-		}
+			unsigned int* acks = NULL;
+			int ack_count = 0;
+			connection.GetReliabilitySystem().GetAcks(&acks, ack_count);
+			if (ack_count > 0)
+			{
+				printf("acks: %d", acks[0]);
+				for (int i = 1; i < ack_count; ++i)
+					printf(",%d", acks[i]);
+				printf("\n");
+			}
 #endif
 
-		// update connection
+			// update connection
 
-		connection.Update(DeltaTime);
+			connection.Update(DeltaTime);
 
-		// show connection stats
+			// show connection stats
 
-		statsAccumulator += DeltaTime;
+			statsAccumulator += DeltaTime;
 
-		while (statsAccumulator >= 0.25f && connection.IsConnected())
-		{
-			float rtt = connection.GetReliabilitySystem().GetRoundTripTime();
+			while (statsAccumulator >= 0.25f && connection.IsConnected())
+			{
+				float rtt = connection.GetReliabilitySystem().GetRoundTripTime();
 
-			unsigned int sent_packets = connection.GetReliabilitySystem().GetSentPackets();
-			unsigned int acked_packets = connection.GetReliabilitySystem().GetAckedPackets();
-			unsigned int lost_packets = connection.GetReliabilitySystem().GetLostPackets();
+				unsigned int sent_packets = connection.GetReliabilitySystem().GetSentPackets();
+				unsigned int acked_packets = connection.GetReliabilitySystem().GetAckedPackets();
+				unsigned int lost_packets = connection.GetReliabilitySystem().GetLostPackets();
 
-			float sent_bandwidth = connection.GetReliabilitySystem().GetSentBandwidth();
-			float acked_bandwidth = connection.GetReliabilitySystem().GetAckedBandwidth();
+				float sent_bandwidth = connection.GetReliabilitySystem().GetSentBandwidth();
+				float acked_bandwidth = connection.GetReliabilitySystem().GetAckedBandwidth();
 
-			printf("rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n",
-				rtt * 1000.0f, sent_packets, acked_packets, lost_packets,
-				sent_packets > 0.0f ? (float)lost_packets / (float)sent_packets * 100.0f : 0.0f,
-				sent_bandwidth, acked_bandwidth);
+				printf("rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n",
+					rtt * 1000.0f, sent_packets, acked_packets, lost_packets,
+					sent_packets > 0.0f ? (float)lost_packets / (float)sent_packets * 100.0f : 0.0f,
+					sent_bandwidth, acked_bandwidth);
 
-			statsAccumulator -= 0.25f;
+				statsAccumulator -= 0.25f;
+			}
+
+			net::wait(DeltaTime);
 		}
 
-		net::wait(DeltaTime);
+		ShutdownSockets();
 	}
-
-	ShutdownSockets();
-
 	return 0;
 }
