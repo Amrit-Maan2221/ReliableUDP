@@ -245,7 +245,10 @@ int main(int argc, char* argv[])
 					inputFileData[howManyRead] = '\0';
 				}
 			}
-
+			if (fclose(ifp) != 0)
+			{
+					printf("Error closing input file\n");
+			}
 		}
 
 		//Upto here we have read the whole in inputFileData Variable and also determined the whole file Size.....
@@ -316,9 +319,13 @@ int main(int argc, char* argv[])
 					strcat((char*)packet, "#");
 					strcat((char*)packet, status);
 					strcat((char*)packet, "#");
+
+					//adding file contents here in body
 					int bodySize = PacketSize - strlen((char*)packet) - 1;
 					strncpy(body, &inputFileData[transferredLength], bodySize);
-					strcat((char*)packet, body);
+					
+
+					strncat((char*)packet, body, bodySize);
 
 					int packetLenthWithBody = strlen((char*)packet);
 					packet[PacketSize - 1] = '\0';
@@ -350,7 +357,7 @@ int main(int argc, char* argv[])
 			while (true)
 			{
 				char receivedData[PacketSize];
-				string fileContent;
+				string fileData;
 				char status[15] = "Processing";
 
 				unsigned char packet[PacketSize];
@@ -371,13 +378,14 @@ int main(int argc, char* argv[])
 				strcpy(receivedData, "");
 				extractPacketData(packet, recFileName, status, receivedData);
 
-				if (strcmp(status, "Done") == 0)
+				if (strcmp(status, "complete") == 0)
 				{
-					ofstream oFile;
+					
+					ofstream ofp;
+					ofp.open("rev.txt", std::ios::binary | std::ios::out);
+					ofp.write(fileData.c_str(), fileData.length());
+					ofp.close();
 
-					oFile.open("rev.txt", std::ios::binary | std::ios::out);
-					oFile.write(fileContent.c_str(), fileContent.length());
-					oFile.close();
 					//hash = CalculateMd5Hash("rev.txt");
 
 					/*if (strcmp(hash.c_str(), data) == 0)
@@ -392,8 +400,8 @@ int main(int argc, char* argv[])
 				}
 				else if (strcmp(status, "Processing") == 0)
 				{
-					string data2(recData);
-					fileContent += data2;
+					string dataCopy(receivedData);
+					fileData += dataCopy;
 				}
 			}
 
