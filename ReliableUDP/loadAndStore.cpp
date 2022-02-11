@@ -14,7 +14,7 @@ void extractPacketData(unsigned char* packet, char* fileName, char* transferStat
 	int fileNameIndex = 0;
 	for (; packetIndex < PacketSize; packetIndex++)
 	{
-		if (packet[packetIndex] = '#')
+		if (packet[packetIndex] == '#')
 		{
 			break;
 		}
@@ -22,11 +22,12 @@ void extractPacketData(unsigned char* packet, char* fileName, char* transferStat
 		fileNameIndex++;
 	}
 	fileName[fileNameIndex] = '\0';
+	packetIndex++;
 
 	int transferStatusIndex = 0;
 	for (; packetIndex < PacketSize; packetIndex++)
 	{
-		if (packet[packetIndex] = '#')
+		if (packet[packetIndex] == '#')
 		{
 			break;
 		}
@@ -34,11 +35,12 @@ void extractPacketData(unsigned char* packet, char* fileName, char* transferStat
 		transferStatusIndex++;
 	}
 	transferStatus[transferStatusIndex] = '\0';
+	packetIndex++;
 
 	int dataIndex = 0;
 	for (; packetIndex < PacketSize; packetIndex++)
 	{
 		data[dataIndex] = packet[packetIndex];
-		dataIndex;
+		dataIndex++;
 	}
 }

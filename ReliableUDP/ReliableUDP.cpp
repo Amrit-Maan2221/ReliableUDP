@@ -125,7 +125,7 @@ private:
 int main(int argc, char* argv[])
 {
 
-	char fileName[21];
+	char fileName[121] = "\0";
 	char task[3];
 	
 	// parse command line
@@ -217,6 +217,7 @@ int main(int argc, char* argv[])
 		char* inputFileData = NULL;
 		long transferredLength = 0;
 		long fileSize = 0;
+
 		bool isFinishedTransfer = false;
 
 
@@ -352,12 +353,11 @@ int main(int argc, char* argv[])
 			}
 
 
-			
+			string fileData;
 
 			while (true)
 			{
 				char receivedData[PacketSize];
-				string fileData;
 				char status[15] = "Processing";
 
 				unsigned char packet[PacketSize];
@@ -380,7 +380,6 @@ int main(int argc, char* argv[])
 
 				if (strcmp(status, "complete") == 0)
 				{
-					
 					ofstream ofp;
 					ofp.open("rev.txt", std::ios::binary | std::ios::out);
 					ofp.write(fileData.c_str(), fileData.length());
@@ -452,5 +451,6 @@ int main(int argc, char* argv[])
 
 		ShutdownSockets();
 	}
+
 	return 0;
 }
