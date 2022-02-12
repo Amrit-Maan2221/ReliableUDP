@@ -8,7 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <openssl/md5.h>
+//#include <openssl/md5.h> //https://vcpkg.io/en/getting-started.html  library for calculating hash
 #include <chrono>
 #include "Net.h"
 using namespace std;
@@ -224,16 +224,16 @@ int main(int argc, char* argv[])
 			if (ifp == NULL)
 			{
 				printf("Can't open input file\n");
+				return -1;
 			}
 
 			//Find length of file
 			fseek(ifp, 0, SEEK_END);
 			fileSize = ftell(ifp);
 			fseek(ifp, 0, SEEK_SET);
-			char fileSizeStr[10] = { 0 };
 			sprintf(fileSizeStr, "%d", fileSize);
 
-			unsigned char c[MD5_DIGEST_LENGTH];
+			/*unsigned char c[MD5_DIGEST_LENGTH];
 			int i;
 			MD5_CTX mdContext;
 			int bytes;
@@ -249,7 +249,7 @@ int main(int argc, char* argv[])
 				char hash2[4] = "";
 				sprintf(hash2, "%02x", c[i]);
 				strcat(hash, hash2);
-			}
+			}*/
 
 			//read in the data from your file
 
@@ -369,17 +369,15 @@ int main(int argc, char* argv[])
 					strcat((char*)packet, "~");
 					strcat((char*)packet, status);
 					strcat((char*)packet, "~");
-					strcat((char*)packet, hash);
-					strcat((char*)packet, "~");
+					//strcat((char*)packet, hash);
 
 
 					connection.SendPacket(packet, sizeof(packet));
 					sendAccumulator -= 1.0f / sendRate;
 
-					t2 = high_resolution_clock::now();
+					
 
-					double dif = duration_cast<nanoseconds>(t2 - t1).count();
-					printf("Elasped time is %lf nanoseconds.\n", dif);
+					
 
 					done = true;
 					break;
@@ -413,6 +411,9 @@ int main(int argc, char* argv[])
 					char originalHash[121] = {0};
 					extractPacketData(packet, recFileName, status, originalHash, fileSizeGot);
 
+					t2 = high_resolution_clock::now();
+					double dif = duration_cast<nanoseconds>(t2 - t1).count();
+					printf("Elasped time is %lf nanoseconds.\n", dif);
 					
 
 					ofstream ofp;
@@ -428,7 +429,7 @@ int main(int argc, char* argv[])
 					{
 						printf("Can't open input file\n");
 					}
-					unsigned char c[MD5_DIGEST_LENGTH];
+					/*unsigned char c[MD5_DIGEST_LENGTH];
 					int i;
 					MD5_CTX mdContext;
 					int bytes;
@@ -444,7 +445,7 @@ int main(int argc, char* argv[])
 						char hash2[4] = "";
 						sprintf(hash2, "%02x", c[i]);
 						strcat(cmpHash, hash2);
-					}
+					}*/
 					if (fclose(ifp) != 0)
 					{
 						printf("Error closing file\n");
