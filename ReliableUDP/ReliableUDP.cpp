@@ -8,7 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-//#include <openssl/md5.h>
+#include <openssl/md5.h>
 #include <chrono>
 #include "Net.h"
 using namespace std;
@@ -213,7 +213,7 @@ int main(int argc, char* argv[])
 		long fileSize = 0;
 		char fileSizeStr[10] = { 0 };
 		bool done = false;
-
+		char hash[121] = "";
 
 
 		//We are reading the file here for sending
@@ -233,10 +233,27 @@ int main(int argc, char* argv[])
 			char fileSizeStr[10] = { 0 };
 			sprintf(fileSizeStr, "%d", fileSize);
 
+			unsigned char c[MD5_DIGEST_LENGTH];
+			int i;
+			MD5_CTX mdContext;
+			int bytes;
+			unsigned char data[1024];
 
+			MD5_Init(&mdContext);
+			while ((bytes = fread(data, 1, 1024, ifp)) != 0)
+				MD5_Update(&mdContext, data, bytes);
+
+			MD5_Final(c, &mdContext);
+			for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+			{
+				char hash2[4] = "";
+				sprintf(hash2, "%02x", c[i]);
+				strcat(hash, hash2);
+			}
 
 			//read in the data from your file
 
+			fseek(ifp, 0, SEEK_SET);
 			inputFileData = (char*)malloc(fileSize + 1);
 			while (!feof(ifp))
 			{
@@ -352,7 +369,8 @@ int main(int argc, char* argv[])
 					strcat((char*)packet, "~");
 					strcat((char*)packet, status);
 					strcat((char*)packet, "~");
-
+					strcat((char*)packet, hash);
+					strcat((char*)packet, "~");
 
 
 					connection.SendPacket(packet, sizeof(packet));
@@ -391,17 +409,57 @@ int main(int argc, char* argv[])
 
 				if (strcmp(status, "complete") == 0)
 				{
-					char hash[121] = {0};
-					extractPacketData(packet, recFileName, status, hash, fileSizeGot);
+					char cmpHash[121] = {0};
+					char originalHash[121] = {0};
+					extractPacketData(packet, recFileName, status, originalHash, fileSizeGot);
 
 					
 
 					ofstream ofp;
 					ofp.open(recFileName, std::ios::binary | std::ios::out);
 					ofp.write(fileData.c_str(), fileData.length());
-
 					ofp.close();
 					fileData = "";
+
+
+					FILE* ifp = NULL;
+					ifp = fopen(recFileName, "rb");
+					if (ifp == NULL)
+					{
+						printf("Can't open input file\n");
+					}
+					unsigned char c[MD5_DIGEST_LENGTH];
+					int i;
+					MD5_CTX mdContext;
+					int bytes;
+					unsigned char data[1024];
+
+					MD5_Init(&mdContext);
+					while ((bytes = fread(data, 1, 1024, ifp)) != 0)
+						MD5_Update(&mdContext, data, bytes);
+
+					MD5_Final(c, &mdContext);
+					for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+					{
+						char hash2[4] = "";
+						sprintf(hash2, "%02x", c[i]);
+						strcat(cmpHash, hash2);
+					}
+					if (fclose(ifp) != 0)
+					{
+						printf("Error closing file\n");
+					}
+
+
+					if (strcmp(cmpHash, originalHash) == 0)
+					{
+						printf("Data Verified!!");
+					}
+					else
+					{
+						printf("Data might be corrupted!!");
+					}
+					
 					
 				}
 				else if (strcmp(status, "sending") == 0)
