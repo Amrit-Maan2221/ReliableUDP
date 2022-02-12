@@ -1,8 +1,35 @@
+//Credit
 /*
 	Reliability and Flow Control Example
 	From "Networking for Game Programmers" - http://www.gaffer.org/networking-for-game-programmers
 	Author: Glenn Fiedler <gaffer@gaffer.org>
 */
+
+/*
+* FILE : ReliableUDP.cpp
+* PROJECT : Assignment 1 : ReliableUDP
+* PROGRAMMER : Deep Patel and Amritpal Singh
+* FIRST VERSION : 2022-02-09
+* DESCRIPTION : This functions contains the server and client methods. It will allow client to
+* send files to the server. It will calctulate the time taken by client to send the file
+* and for server to receive the file. It also contains checksum of MD5. It will match
+* client and server hash, if it matches then the data was sucessfully sent or else
+* the data was corrupted.
+*/
+
+[19:37] Deep Patel
+
+/*
+* FILE : Net.h
+* PROJECT : Assignment 1 : ReliableUDP
+* PROGRAMMER : Deep Patel and Amritpal Singh
+* FIRST VERSION : 2022-02-09
+* DESCRIPTION : This functions contains header of both ReliableUDP.cpp file and dataParsing.cpp
+* It also contains the protoypes of the methods that are involved in both cpp files.
+* And, it also contains code-behind for client and server to run properly.
+*/
+
+
 
 #include <iostream>
 #include <fstream>

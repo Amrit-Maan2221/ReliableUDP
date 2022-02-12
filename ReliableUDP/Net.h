@@ -1,8 +1,24 @@
+//Credit
 /*
 	Simple Network Library from "Networking for Game Programmers"
 	http://www.gaffer.org/networking-for-game-programmers
 	Author: Glenn Fiedler <gaffer@gaffer.org>
 */
+
+
+/*
+* FILE : Net.h
+* PROJECT : Assignment 1 : ReliableUDP
+* PROGRAMMER : Deep Patel and Amritpal Singh
+* FIRST VERSION : 2022-02-09
+* DESCRIPTION : This functions contains header of both ReliableUDP.cpp file and dataParsing.cpp
+* It also contains the protoypes of the methods that are involved in both cpp files.
+* And, it also contains code-behind for client and server to run properly.
+*/
+
+
+
+
 
 #ifndef NET_H
 #define NET_H
