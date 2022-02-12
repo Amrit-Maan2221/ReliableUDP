@@ -17,17 +17,7 @@
 * the data was corrupted.
 */
 
-[19:37] Deep Patel
 
-/*
-* FILE : Net.h
-* PROJECT : Assignment 1 : ReliableUDP
-* PROGRAMMER : Deep Patel and Amritpal Singh
-* FIRST VERSION : 2022-02-09
-* DESCRIPTION : This functions contains header of both ReliableUDP.cpp file and dataParsing.cpp
-* It also contains the protoypes of the methods that are involved in both cpp files.
-* And, it also contains code-behind for client and server to run properly.
-*/
 
 
 
@@ -35,7 +25,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-//#include <openssl/md5.h> //https://vcpkg.io/en/getting-started.html  library for calculating hash
+#include <openssl/md5.h> //https://vcpkg.io/en/getting-started.html  library for calculating hash
 #include <chrono>
 #include "Net.h"
 using namespace std;
@@ -260,7 +250,7 @@ int main(int argc, char* argv[])
 			fseek(ifp, 0, SEEK_SET);
 			sprintf(fileSizeStr, "%d", fileSize);
 
-			/*unsigned char c[MD5_DIGEST_LENGTH];
+			unsigned char c[MD5_DIGEST_LENGTH];
 			int i;
 			MD5_CTX mdContext;
 			int bytes;
@@ -276,7 +266,7 @@ int main(int argc, char* argv[])
 				char hash2[4] = "";
 				sprintf(hash2, "%02x", c[i]);
 				strcat(hash, hash2);
-			}*/
+			}
 
 			//read in the data from your file
 
@@ -396,7 +386,7 @@ int main(int argc, char* argv[])
 					strcat((char*)packet, "~");
 					strcat((char*)packet, status);
 					strcat((char*)packet, "~");
-					//strcat((char*)packet, hash);
+					strcat((char*)packet, hash);
 
 
 					connection.SendPacket(packet, sizeof(packet));
@@ -456,7 +446,7 @@ int main(int argc, char* argv[])
 					{
 						printf("Can't open input file\n");
 					}
-					/*unsigned char c[MD5_DIGEST_LENGTH];
+					unsigned char c[MD5_DIGEST_LENGTH];
 					int i;
 					MD5_CTX mdContext;
 					int bytes;
@@ -472,7 +462,7 @@ int main(int argc, char* argv[])
 						char hash2[4] = "";
 						sprintf(hash2, "%02x", c[i]);
 						strcat(cmpHash, hash2);
-					}*/
+					}
 					if (fclose(ifp) != 0)
 					{
 						printf("Error closing file\n");
